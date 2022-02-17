@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "adc.h"
+#include "usart.h"
 
 volatile uint8_t cntCinqCentMs = 0;
 volatile uint8_t cinqCentMSFlag = 0;
@@ -44,13 +45,13 @@ int main(void)
 		if (refreshMesure) // Flag qui est vrai à chaque quatre ms.
 		{
 			refreshMesure = 0;
-			adcValTemp = adcGetValue(1); // Lecture du canal 1 du ADC.
+			adcValTemp = adcGetValue(0); // Lecture du canal 1 du ADC.
 		}
 		if (cinqCentMSFlag) // Flag qui est vrai à chaque cinq cent ms.
 		{
 			cinqCentMSFlag = 0;
-
-			sprintf(msgTemp, "Temperature:%0.1f", temperature); // Conversion de la mesure de température en string.
+			sprintf(msgTemp, "Temperature:%0.1f \n\r", temperature); // Conversion de la mesure de température en string.
+			usartSendString(msgTemp);
 		}
 		temperature = (float)adcValTemp / 22; // Puisque le capteur de température est un capteur linéaire, 22 à été obtenu en prenant une valeur en début et en la divisant par un nombre qui nous permet d'arriver à la température actuelle.
 	}
@@ -74,6 +75,7 @@ void miscInit(void)
 {
 	timer1Init(); // Initialisation du timers #1.
 	adcInit();	  // Initialisation du adc.
+	usartInit(1000000, F_CPU);
 }
 
 void timer1Init()
