@@ -19,8 +19,8 @@ Partie du projet Motrik qui sera utilisé afin de mesurer la température avec l
 #include "adc.h"
 #include "usart.h"
 
-#define FILTRE_SIZE 3
-#define FILTRE_ECART_MAX 2
+#define FILTRE_SIZE 10
+#define FILTRE_ECART_MAX 3
 
 volatile uint8_t cntCinqCentMs = 0;
 volatile uint8_t cinqCentMSFlag = 0;
