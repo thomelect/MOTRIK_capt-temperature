@@ -1,9 +1,9 @@
 /**
-* @file 	  main.c
-* @brief 	  Partie du projet Motrik qui sera utilisé afin de mesurer la température avec le LM65.
-* @author 	  Thomas Desrosiers
-* @version   2.0
-* @date 	  2022/02/11
+* @file		main.c
+* @brief	Partie du projet Motrik qui sera utilisé afin de mesurer la température avec le LM65.
+* @author	Thomas Desrosiers
+* @version	2.1
+* @date		2022/02/11
 
 * @mainpage  MOTRIK_capt-temperature
 * @author 	  Thomas Desrosiers
@@ -19,12 +19,11 @@ Partie du projet Motrik qui sera utilisé afin de mesurer la température avec l
 #include "adc.h"
 #include "usart.h"
 
-#define FILTRE_SIZE 10
+#define FILTRE_SIZE 100
 #define FILTRE_ECART_MAX 3
 
-volatile uint8_t cntCinqCentMs = 0;
-volatile uint8_t cinqCentMSFlag = 0;
-volatile uint8_t refreshMesure = 0;
+volatile uint8_t cntDixMs = 0;
+volatile uint8_t dixMSFlag = 0;
 char msgTemp[17];
 uint16_t adcValTemp = 0;
 float temperatureAcquisition = 0;
@@ -35,15 +34,20 @@ uint8_t tblIndex = 0;
 
 // Prototypes des fonctions locales
 /**
-* @brief  Fonction d'initialisation du timer 0 avec une période de 4ms.
-*/
+ * @brief  Fonction d'initialisation du timer 0 avec une période de 1ms.
+ */
 void timer1Init();
 
 /**
-*@brief  Fonction qui regroupe l'initialisation des différents I/O et des librairies.
-*/
+ *@brief  Fonction qui regroupe l'initialisation des différents I/O et des librairies.
+ */
 void miscInit(void);
 
+/**
+ * @brief  		   Fonction qui remplis un tableau de données et retourne la moyenne de ces valeurs.
+ * @param tempRaw  Valeur brut mesurée et calculer depuis l'ADC.
+ * @return 		   Moyenne calculée depuis le tableau.
+ */
 float filtreFenetre(float tempRaw);
 
 int main(void)
@@ -51,15 +55,10 @@ int main(void)
 	miscInit();
 	while (1)
 	{
-		if (refreshMesure) // Flag qui est vrai à chaque quatre ms.
+		if (dixMSFlag) // Flag qui est vrai à chaque 10ms.
 		{
-			refreshMesure = 0;
+			dixMSFlag = 0;
 			adcValTemp = adcGetValue(0); // Lecture du canal 1 du ADC.
-		}
-		if (cinqCentMSFlag) // Flag qui est vrai à chaque cinq cent ms.
-		{
-			cinqCentMSFlag = 0;
-			
 			temperatureFiltered = filtreFenetre(temperatureAcquisition);
 			sprintf(msgTemp, "Temperature: %0.1f  %0.1f\n\r", temperatureAcquisition, temperatureFiltered); // Conversion de la mesure de température en string.
 			usartSendString(msgTemp);
@@ -69,16 +68,15 @@ int main(void)
 }
 
 /**
-*@brief  Le timer 1 est initialisé à 4ms. à chaques 4ms, refresh mesure est HAUT et après 500ms(125 x 4ms) cinqCentMSFlag est HAUT.
-*/
+ *@brief  Le timer 1 est initialisé à 1ms. à chaques 1ms, cntDixFlag mesure est HAUT et après 10ms(10 x 1ms) cntDixFlag est HAUT.
+ */
 ISR(TIMER1_COMPA_vect)
 {
-	refreshMesure = 1; //À chaque 4ms. Ce flag sera utilisé pour faire une nouvelle mesure d'ADC.
-	cntCinqCentMs++;
-	if (cntCinqCentMs >= 125)
+	cntDixMs++;
+	if (cntDixMs >= 10)
 	{
-		cntCinqCentMs -= 125;
-		cinqCentMSFlag = 1; //À chaque 500ms. Ce flag sera utilisé pour changer les valeurs envoyés par les capteurs.
+		cntDixMs -= 10;
+		dixMSFlag = 1; //À chaque 10ms. Ce flag sera utilisé pour changer les valeurs envoyés par les capteurs.
 	}
 }
 
@@ -98,10 +96,10 @@ void timer1Init()
 	// TCCR1A : COM1A1 COM1A0 COM1B1 COM1B0 COM1C1 COM1C0 WGM11 WGM10
 	// TCCR1B: ICNC1 ICES1 – WGM13 WGM12 CS12 CS11 CS10
 	// TIMSK1: – – ICIE1 – OCIE1C OCIE1B OCIE1A TOIE1
-	TCCR1B = (1 << WGM12);	 // mode CTC.
-	TCCR1B |= (1 << CS12);	 // Prescaler de 256.
-	TIMSK1 |= (1 << OCIE1A); // Output Compare A Match Interrupt Enable
-	OCR1A = 250 - 1;		 // 62.5ns * 256 * 250 * 125 = 500ms
+	TCCR1B = (1 << WGM12);				 // mode CTC.
+	TCCR1B |= (1 << CS11) | (1 << CS10); // Prescaler de 64.
+	TIMSK1 |= (1 << OCIE1A);			 // Output Compare A Match Interrupt Enable.
+	OCR1A = 250 - 1;					 // 62.5ns * 64 * 250 = 1ms.
 	sei();
 }
 
@@ -119,7 +117,7 @@ float filtreFenetre(float tempRaw)
 	}
 	if (tblFlag)
 	{
-		
+
 		for (uint8_t i = 0; i < FILTRE_SIZE; i++)
 		{
 			valFiltre += tblData[i];
@@ -132,7 +130,7 @@ float filtreFenetre(float tempRaw)
 	}
 	else
 	{
-		valFiltre = tempRaw;
+		valFiltre = 0;
 	}
 	return valFiltre;
 }
