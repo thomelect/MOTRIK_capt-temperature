@@ -1,14 +1,14 @@
 /**
-* @file		main.c
-* @brief	Partie du projet Motrik qui sera utilisé afin de mesurer la température avec le LM65.
-* @author	Thomas Desrosiers
-* @version	2.1
-* @date		2022/02/11
+* @file		 main.c
+* @brief	 Partie du projet Motrik qui sera utilisé afin de mesurer la température avec le LM65.
+* @author	 Thomas Desrosiers
+* @version	 2.1
+* @date		 2022/02/11
 
 * @mainpage  MOTRIK_capt-temperature
-* @author 	  Thomas Desrosiers
+* @author 	 Thomas Desrosiers
 * @section   MainSection1 Description
-Partie du projet Motrik qui sera utilisé afin de mesurer la température avec le LM65.
+			 Partie du projet Motrik qui sera utilisé afin de mesurer la température avec le LM65.
 */
 
 #define F_CPU 16000000UL
@@ -19,9 +19,17 @@ Partie du projet Motrik qui sera utilisé afin de mesurer la température avec l
 #include "adc.h"
 #include "usart.h"
 
+
+/**********
+ * DEFINE *
+ **********/
 #define FILTRE_SIZE 100
 #define FILTRE_ECART_MAX 3
 
+
+/************
+ * VARIABLE *
+ ************/
 volatile uint8_t cntDixMs = 0;
 volatile uint8_t dixMSFlag = 0;
 char msgTemp[17];
@@ -32,7 +40,16 @@ uint8_t tblFlag = 0;
 float tblData[FILTRE_SIZE];
 uint8_t tblIndex = 0;
 
-// Prototypes des fonctions locales
+
+/******************
+ *      ENUM      *
+ * STRUCT & UNION *
+ ******************/
+
+
+/**************************
+ * PROTOTYPES DE FONCTION *
+ **************************/
 /**
  * @brief  Fonction d'initialisation du timer 0 avec une période de 1ms.
  */
@@ -50,6 +67,10 @@ void miscInit(void);
  */
 float filtreFenetre(float tempRaw);
 
+
+/********
+ * MAIN *
+ ********/
 int main(void)
 {
 	miscInit();
@@ -67,19 +88,27 @@ int main(void)
 	}
 }
 
+
+/****************
+ * INTERRUPTION *
+ ****************/
 /**
  *@brief  Le timer 1 est initialisé à 1ms. à chaques 1ms, cntDixFlag mesure est HAUT et après 10ms(10 x 1ms) cntDixFlag est HAUT.
  */
 ISR(TIMER1_COMPA_vect)
 {
 	cntDixMs++;
-	if (cntDixMs >= 10)
+	if (cntDixMs >= 100)
 	{
 		cntDixMs -= 10;
 		dixMSFlag = 1; //À chaque 10ms. Ce flag sera utilisé pour changer les valeurs envoyés par les capteurs.
 	}
 }
 
+
+/************************
+ * DÉFINITION FONCTIONS *
+ ************************/
 void miscInit(void)
 {
 	timer1Init(); // Initialisation du timers #1.
