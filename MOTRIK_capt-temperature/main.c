@@ -26,6 +26,12 @@
 #define FILTRE_SIZE 100
 #define FILTRE_ECART_MAX 3
 
+#define DEL_B_INIT()	(DDRB |= (1<<4)) //initialise PB4 comme étant une sortie. (del bleue)
+#define DEL_J_INIT()	(DDRB |= (1<<5)) //initialise PB5 comme étant une sortie. (del jaune)
+#define DEL_R_INIT()	(DDRB |= (1<<7)) //initialise PB7 comme étant une sortie. (del rouge)
+#define DEL_B_SET(a)	(PORTB = (PORTB & ~(1<<4)) | ((a && 1) << 4)) //État de la del bleue.
+#define DEL_J_SET(a)	(PORTB = (PORTB & ~(1<<5)) | ((a && 1) << 5)) //État de la del jaune.
+#define DEL_R_SET(a)	(PORTB = (PORTB & ~(1<<7)) | ((a && 1) << 7)) //État de la del rouge.
 
 /************
  * VARIABLE *
@@ -81,10 +87,10 @@ int main(void)
 			dixMSFlag = 0;
 			adcValTemp = adcGetValue(0); // Lecture du canal 1 du ADC.
 			temperatureFiltered = filtreFenetre(temperatureAcquisition);
-			sprintf(msgTemp, "Temperature: %0.1f  %0.1f\n\r", temperatureAcquisition, temperatureFiltered); // Conversion de la mesure de température en string.
+			sprintf(msgTemp, "Temperature: %d %0.1f \n\r", adcValTemp, temperatureAcquisition/*, temperatureFiltered*/); // Conversion de la mesure de température en string.
 			usartSendString(msgTemp);
 		}
-		temperatureAcquisition = (float)adcValTemp / 8.903512712; // Puisque le capteur de température est un capteur linéaire, 22 à été obtenu en prenant une valeur en début et en la divisant par un nombre qui nous permet d'arriver à la température actuelle.
+		temperatureAcquisition = (float)adcValTemp / 29.54918033; // Puisque le capteur de température est un capteur linéaire, 22 à été obtenu en prenant une valeur en début et en la divisant par un nombre qui nous permet d'arriver à la température actuelle.
 	}
 }
 
@@ -111,6 +117,12 @@ ISR(TIMER1_COMPA_vect)
  ************************/
 void miscInit(void)
 {
+	DEL_B_INIT();
+	DEL_J_INIT();
+	DEL_R_INIT();
+	DEL_B_SET(1);
+	DEL_J_SET(1);
+	DEL_R_SET(1);
 	timer1Init(); // Initialisation du timers #1.
 	adcInit();	  // Initialisation du adc.
 	usartInit(1000000, F_CPU);
