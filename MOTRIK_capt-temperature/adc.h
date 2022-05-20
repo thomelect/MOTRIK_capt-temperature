@@ -18,7 +18,7 @@ void adcInit();
 
 /**
  * @brief         Fonction qui permet au main.c d'acceder au tableau d'entiers correspondant au canal choisi en paramètre.
- * @param  canal  Prend la valeur de 0 ou de 1 tout dépendant du canal dont on souhaite connaitre la valeur.
+ * @param  canal  Prend la valeur de 0, 1 ou de 2 tout dépendant du canal dont l'on souhaite connaitre la valeur.
  * @return        Retourne le tableau correspondant au canal choisi en paramètre.
  */
 uint16_t adcGetValue(uint8_t canal);
