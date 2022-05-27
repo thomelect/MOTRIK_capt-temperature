@@ -24,7 +24,7 @@
  * DEFINE *
  **********/
 #define FILTRE_SIZE 100
-#define FILTRE_ECART_MAX 3
+#define FILTRE_ECART_MAX 5
 
 #define DEL_B_INIT()	(DDRB |= (1<<4)) //initialise PB4 comme étant une sortie. (del bleue)
 #define DEL_J_INIT()	(DDRB |= (1<<5)) //initialise PB5 comme étant une sortie. (del jaune)
@@ -42,13 +42,30 @@
  ************/
 volatile uint8_t cntDixMs = 0;
 volatile uint8_t dixMSFlag = 0;
-char msgTemp[17];
+uint8_t msgTemp[4] = {'<',1,0,'>'};
+uint8_t msgTemp2[4] = {'<',2,0,'>'};
+uint8_t msgTemp3[4] = {'<',3,0,'>'};
 uint16_t adcValTemp = 0;
+uint16_t adcValTemp2 = 0;
+uint16_t adcValTemp3 = 0;
 float temperatureAcquisition = 0;
 float temperatureFiltered = 0;
+float temperatureAcquisition2 = 0;
+float temperatureFiltered2 = 0;
+float temperatureAcquisition3 = 0;
+float temperatureFiltered3 = 0;
 uint8_t tblFlag = 0;
+uint8_t tblFlag2 = 0;
+uint8_t tblFlag3 = 0;
 float tblData[FILTRE_SIZE];
+float tblData2[FILTRE_SIZE];
+float tblData3[FILTRE_SIZE];
 uint8_t tblIndex = 0;
+uint8_t tblIndex2 = 0;
+uint8_t tblIndex3 = 0;
+float valFiltre = 0;
+float valFiltre2 = 0;
+float valFiltre3 = 0;
 
 
 /******************
@@ -75,7 +92,7 @@ void miscInit(void);
  * @param tempRaw  Valeur brut mesurée et calculer depuis l'ADC.
  * @return 		   Moyenne calculée depuis le tableau.
  */
-float filtreFenetre(float tempRaw);
+float filtreFenetre(float tempRaw, uint8_t temp);
 
 
 /********
@@ -89,12 +106,32 @@ int main(void)
 		if (dixMSFlag) // Flag qui est vrai à chaque 10ms.
 		{
 			dixMSFlag = 0;
-			adcValTemp = adcGetValue(CAPT_3); // Lecture du canal 1 du ADC.
-			temperatureFiltered = filtreFenetre(temperatureAcquisition);
-			sprintf(msgTemp, "Temperature-#%d: %d %0.1f \n\r", (CAPT_3+1), adcValTemp, temperatureAcquisition/*, temperatureFiltered*/); // Conversion de la mesure de température en string.
-			usartSendString(msgTemp);
+			adcValTemp = adcGetValue(CAPT_1); // Lecture du canal 1 du ADC.
+			temperatureFiltered = filtreFenetre(temperatureAcquisition,CAPT_1);
+			//sprintf(msgTemp, "Temperature-#%d: %d %0.1f \n\r", (CAPT_1+1), adcValTemp, temperatureAcquisition/*, temperatureFiltered*/); // Conversion de la mesure de température en string.
+			//usartSendString(msgTemp);
+			msgTemp[2] = (uint8_t)temperatureFiltered;
+			usartSendBytes(msgTemp,4);
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//adcValTemp2 = adcGetValue(CAPT_2); // Lecture du canal 1 du ADC.
+			//temperatureFiltered2 = filtreFenetre(temperatureAcquisition2,CAPT_2);
+			////sprintf(msgTemp2, "Temperature-#%d: %d %0.1f \n\r", (CAPT_2+1), adcValTemp2, temperatureAcquisition2/*, temperatureFiltered2*/); // Conversion de la mesure de température en string.
+			////usartSendString(msgTemp2);
+			//msgTemp2[2] = (uint8_t)temperatureAcquisition2;
+			//usartSendBytes(msgTemp2,4);
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//adcValTemp3 = adcGetValue(CAPT_3); // Lecture du canal 1 du ADC.
+			//temperatureFiltered3 = filtreFenetre(temperatureAcquisition3,CAPT_3);
+			////sprintf(msgTemp3, "Temperature-#%d: %d %0.1f \n\r", (CAPT_3+1), adcValTemp3, temperatureAcquisition3/*, temperatureFiltered*/); // Conversion de la mesure de température en string.
+			////usartSendString(msgTemp3);
+			//msgTemp3[2] = (uint8_t)temperatureAcquisition3;
+			//usartSendBytes(msgTemp3,4);
 		}
-		temperatureAcquisition = (float)adcValTemp / 29.54918033; // Puisque le capteur de température est un capteur linéaire, 22 à été obtenu en prenant une valeur en début et en la divisant par un nombre qui nous permet d'arriver à la température actuelle.
+		temperatureAcquisition = ((1023.00-((float)adcValTemp ))-189.64)/4; // Puisque le capteur de température est un capteur linéaire, 22 à été obtenu en prenant une valeur en début et en la divisant par un nombre qui nous permet d'arriver à la température actuelle.
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//temperatureAcquisition2 = ((1023.00-((float)adcValTemp2 )));
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//temperatureAcquisition3 = ((1023.00-((float)adcValTemp3 )));
 	}
 }
 
@@ -108,7 +145,7 @@ int main(void)
 ISR(TIMER1_COMPA_vect)
 {
 	cntDixMs++;
-	if (cntDixMs >= 100)
+	if (cntDixMs >= 10)
 	{
 		cntDixMs -= 10;
 		dixMSFlag = 1; //À chaque 10ms. Ce flag sera utilisé pour changer les valeurs envoyés par les capteurs.
@@ -148,34 +185,98 @@ void timer1Init()
 	sei();
 }
 
-float filtreFenetre(float tempRaw)
+float filtreFenetre(float tempRaw, uint8_t temp)
 {
-	float valFiltre = 0;
-	if (tblIndex >= FILTRE_SIZE)
+	float returnValue = 0;
+	switch(temp)
 	{
-		tblFlag = 1;
-		tblIndex = 0;
-	}
-	if (!tblFlag)
-	{
-		tblData[tblIndex++] = tempRaw;
-	}
-	if (tblFlag)
-	{
-
-		for (uint8_t i = 0; i < FILTRE_SIZE; i++)
+	case 0:
+		if (tblIndex >= FILTRE_SIZE)
 		{
-			valFiltre += tblData[i];
+			tblFlag = 1;
+			tblIndex = 0;
 		}
-		valFiltre /= FILTRE_SIZE;
-		if (((tempRaw - valFiltre) < FILTRE_ECART_MAX) && ((valFiltre - tempRaw) < FILTRE_ECART_MAX))
+		if (!tblFlag)
 		{
 			tblData[tblIndex++] = tempRaw;
 		}
+		if (tblFlag)
+		{
+
+			for (uint8_t i = 0; i < FILTRE_SIZE; i++)
+			{
+				valFiltre += tblData[i];
+			}
+			valFiltre /= FILTRE_SIZE;
+			if (((tempRaw - valFiltre) < FILTRE_ECART_MAX) && ((valFiltre - tempRaw) < FILTRE_ECART_MAX))
+			{
+				tblData[tblIndex++] = tempRaw;
+			}
+		}
+		else
+		{
+			valFiltre = 0;
+		}
+		returnValue = valFiltre;
+		break;
+	case 1:
+		if (tblIndex2 >= FILTRE_SIZE)
+		{
+			tblFlag2 = 1;
+			tblIndex2 = 0;
+		}
+		if (!tblFlag2)
+		{
+			tblData2[tblIndex2++] = tempRaw;
+		}
+		if (tblFlag2)
+		{
+
+			for (uint8_t i = 0; i < FILTRE_SIZE; i++)
+			{
+				valFiltre2 += tblData2[i];
+			}
+			valFiltre2 /= FILTRE_SIZE;
+			if (((tempRaw - valFiltre2) < FILTRE_ECART_MAX) && ((valFiltre2 - tempRaw) < FILTRE_ECART_MAX))
+			{
+				tblData2[tblIndex2++] = tempRaw;
+			}
+		}
+		else
+		{
+			valFiltre2 = 0;
+		}
+		returnValue = valFiltre2;
+		break;
+	case 2:
+		if (tblIndex3 >= FILTRE_SIZE)
+		{
+			tblFlag3 = 1;
+			tblIndex3 = 0;
+		}
+		if (!tblFlag3)
+		{
+			tblData3[tblIndex3++] = tempRaw;
+		}
+		if (tblFlag3)
+		{
+
+			for (uint8_t i = 0; i < FILTRE_SIZE; i++)
+			{
+				valFiltre3 += tblData3[i];
+			}
+			valFiltre3 /= FILTRE_SIZE;
+			if (((tempRaw - valFiltre3) < FILTRE_ECART_MAX) && ((valFiltre3 - tempRaw) < FILTRE_ECART_MAX))
+			{
+				tblData3[tblIndex3++] = tempRaw;
+			}
+		}
+		else
+		{
+			valFiltre3 = 0;
+		}
+		returnValue = valFiltre3;
+		break;
 	}
-	else
-	{
-		valFiltre = 0;
-	}
-	return valFiltre;
+	return returnValue;
 }
